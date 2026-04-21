@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>빛의 타로</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--gold:#d4af37;--gold-bright:#ffea7a;--gold-dim:#8a6f1a;--card-back:#3d2b1f;--card-border:#d4af37;}
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+        body,html{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:'Noto Serif KR',serif;}
+        #main-screen{width:100%;height:100%;max-width:500px;margin:0 auto;background-image:url('https://i.imgur.com/6RQ7jjS.jpeg');background-size:100% 100%;position:relative;overflow:hidden;}
+        #frame-layer{position:absolute;top:18.5%;left:14%;width:72%;height:19.5%;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(2,1fr);row-gap:8%;column-gap:5%;z-index:2;}
+        .frame-hit{background:transparent;border:none;cursor:pointer;width:100%;height:100%;}
+        #lamp-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3;}
+        #glow-canvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;opacity:0;transition:opacity 0.6s ease;}
+        #glow-canvas.glow-on{opacity:1;}
+        #btn-ask-overlay{position:absolute;bottom:4.5%;left:33%;width:34%;height:6.5%;background:transparent;border:none;cursor:pointer;z-index:100;}
+        #guide-text{position:absolute;bottom:1.5%;left:0;width:100%;text-align:center;color:var(--gold-bright);font-size:14px;letter-spacing:0.5px;z-index:110;pointer-events:none;text-shadow:0 0 5px rgba(0,0,0,1);animation:soft-blink 2.5s infinite ease-in-out;}
+        @keyframes soft-blink{0%,100%{opacity:0.3;transform:scale(0.98)}50%{opacity:0.9;transform:scale(1)}}
+        #music-btn{position:absolute;top:1.5%;right:3%;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid var(--gold-dim);color:var(--gold-bright);font-size:16px;cursor:pointer;z-index:200;display:flex;align-items:center;justify-content:center;transition:all 0.3s;}
+        #music-btn.muted{opacity:0.5;}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:2000;display:none;justify-content:center;align-items:center;backdrop-filter:blur(10px);}
+        .luxury-box{background:#0e0b07;border:1.5px solid var(--gold);border-radius:20px;padding:24px;width:90%;max-width:360px;text-align:center;color:#fff;position:relative;padding-top:50px;}
+        .candle{position:absolute;top:15px;font-size:24px;filter:drop-shadow(0 0 8px #ffaa00);}
+        .candle-left{left:25px;}.candle-right{right:25px;}
+        .luxury-input{width:100%;height:100px;background:#050300;border:1px solid var(--gold-dim);color:#eee;padding:12px;border-radius:10px;margin:15px 0 6px;outline:none;font-size:15px;resize:none;font-family:'Noto Serif KR',serif;}
+        .gold-btn{background:linear-gradient(135deg,#c9a227,#e8cc5a,#c9a227);color:#0a0700;border:none;padding:14px 0;width:100%;border-radius:25px;font-weight:bold;cursor:pointer;font-size:15px;font-family:'Noto Serif KR',serif;}
+        .blink-btn{animation:button-blink 1.5s infinite ease-in-out;}
+        @keyframes button-blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.82;transform:scale(0.97);filter:brightness(1.25)}}
+        .mic-btn{position:absolute;right:10px;bottom:14px;width:36px;height:36px;border-radius:50%;background:rgba(212,175,55,0.15);border:1.5px solid var(--gold-dim);color:var(--gold-bright);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.3s;}
+        .mic-btn.listening{background:rgba(255,80,80,0.3);border-color:#ff5555;}
+        .voice-status{font-size:11px;color:#888;margin:0 0 12px;min-height:16px;text-align:center;}
+        #pick-layer{position:fixed;inset:0;background:radial-gradient(ellipse at center,#0d0a06 0%,#000 100%);z-index:3000;display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 0;}
+        #card-slots{display:flex;gap:12px;margin-top:8px;}
+        .slot{width:72px;height:112px;border:1px solid #2a2010;border-radius:8px;background:rgba(255,255,255,0.02);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:0.4s;gap:4px;overflow:hidden;}
+        .slot.active{border:2px solid var(--card-border);box-shadow:0 0 20px rgba(212,175,55,0.4);}
+        .slot-num{color:var(--gold);font-size:11px;font-weight:bold;}
+        .slot-name{color:#ccc;font-size:9px;text-align:center;line-height:1.3;padding:0 3px;}
+        #table-container{flex:1;width:100vw;max-width:500px;display:flex;align-items:center;justify-content:center;}
+        svg{width:100%;height:100%;overflow:visible;}
+        .card-group{cursor:pointer;transition:transform 0.8s cubic-bezier(0.4,0,0.2,1),filter 0.3s;}
+        .card-group:hover .card-body{filter:brightness(1.5) drop-shadow(0 0 4px rgba(255,255,255,0.6));}
+        .card-body{fill:#1a1208;stroke:rgba(210,190,140,0.8);stroke-width:1.2;transition:fill 0.4s,filter 0.4s;}
+        .card-inner-line{fill:none;stroke:rgba(210,190,140,0.4);stroke-width:0.7;}
+        .card-diamond{fill:none;stroke:rgba(210,190,140,0.55);stroke-width:0.8;}
+        .card-group.picked .card-body{fill:#fff!important;stroke:#fff;filter:drop-shadow(0 0 14px #fff) brightness(1.8);}
+        .card-group.picked .card-inner-line,.card-group.picked .card-diamond{opacity:0;}
+        #pick-footer{width:100%;display:flex;justify-content:center;gap:12px;padding:0 20px 8px;}
+        .pick-btn-sec{width:44%;background:rgba(255,255,255,0.05);color:var(--gold);border:1.5px solid var(--gold-dim);padding:13px 0;border-radius:25px;font-size:14px;font-family:'Noto Serif KR',serif;cursor:pointer;}
+        .pick-btn-pri{width:44%;background:linear-gradient(135deg,#c9a227,#e8cc5a,#c9a227);color:#0a0700;border:none;padding:13px 0;border-radius:25px;font-size:14px;font-family:'Noto Serif KR',serif;font-weight:bold;cursor:pointer;}
+        #modal-result{position:fixed;inset:0;background:#060401;z-index:4000;display:none;flex-direction:column;align-items:center;overflow-y:auto;padding:30px 20px 60px;-webkit-overflow-scrolling:touch;}
+        .result-title{color:var(--gold);font-size:20px;letter-spacing:3px;margin-bottom:20px;}
+        .result-btns{display:flex;gap:10px;width:100%;max-width:420px;margin-top:24px;}
+        .btn-continue{flex:1;background:linear-gradient(135deg,#c9a227,#e8cc5a,#c9a227);color:#0a0700;border:none;padding:14px 0;border-radius:25px;font-weight:bold;cursor:pointer;font-size:13px;font-family:'Noto Serif KR',serif;box-shadow:0 4px 15px rgba(212,175,55,0.3);}
+        .btn-end{flex:1;background:transparent;color:var(--gold);border:1.5px solid var(--gold-dim);padding:14px 0;border-radius:25px;font-weight:bold;cursor:pointer;font-size:13px;font-family:'Noto Serif KR',serif;}
+        .res-cards-row{display:flex;gap:10px;margin-bottom:24px;justify-content:center;}
+        .res-card-wrap{text-align:center;width:80px;}
+        .res-card-img{width:80px;height:130px;border:2px solid var(--gold);background:var(--card-back);margin:0 auto;display:flex;align-items:center;justify-content:center;color:var(--gold);font-weight:bold;font-size:18px;border-radius:6px;box-shadow:0 0 20px rgba(212,175,55,0.25);overflow:hidden;}
+        .res-card-name{font-size:10px;color:var(--gold-bright);margin-top:6px;font-weight:bold;line-height:1.4;}
+        .result-section{width:100%;max-width:420px;background:rgba(255,255,255,0.03);border:1px solid #2a1f0d;border-radius:12px;padding:18px;margin-bottom:14px;}
+        .sec-h{color:var(--gold);font-weight:bold;margin-bottom:8px;font-size:13px;border-bottom:1px solid #332612;padding-bottom:6px;letter-spacing:1px;}
+        .sec-b{color:#d8d0c8;font-size:13px;line-height:1.9;white-space:pre-wrap;font-family:'Noto Serif KR',serif;}
+        #modal-continue{position:fixed;inset:0;background:rgba(0,0,0,0.97);z-index:5000;display:none;justify-content:center;align-items:center;backdrop-filter:blur(12px);}
+        .continue-box{background:#0e0b07;border:1.5px solid var(--gold);border-radius:20px;padding:28px 24px;width:90%;max-width:360px;text-align:center;color:#fff;}
+        .continue-box h3{color:var(--gold);margin:0 0 8px;font-size:18px;}
+        .continue-box p{color:#aaa;font-size:12px;margin:0 0 16px;line-height:1.6;}
+        .prev-q-box{background:#0a0700;border:1px solid #2a1a00;border-radius:10px;padding:12px;margin-bottom:16px;color:#ccc;font-size:12px;text-align:left;line-height:1.6;}
+        .prev-q-label{color:var(--gold-dim);font-size:10px;margin-bottom:4px;}
+        .loading-wrap{display:flex;flex-direction:column;align-items:center;padding:40px;gap:16px;}
+        .loading-orb{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle,rgba(0,242,255,0.4) 0%,transparent 70%);box-shadow:0 0 30px rgba(0,242,255,0.3);animation:orbPulse 1.5s ease-in-out infinite;}
+        @keyframes orbPulse{0%,100%{transform:scale(1);opacity:0.6}50%{transform:scale(1.2);opacity:1}}
+        .loading-text{color:var(--gold-bright);font-size:13px;}
+        .loading-text::after{content:'';animation:dots 1.4s infinite;}
+        @keyframes dots{0%{content:'.'}33%{content:'..'}66%{content:'...'}}
+    </style>
+</head>
+<body>
+<div id="main-screen">
+    <button id="music-btn" onclick="toggleMusic()">🎵</button>
+    <canvas id="lamp-canvas"></canvas>
+    <div id="frame-layer">
+        <button class="frame-hit" onclick="selectLuck('연애운','255,77,109')"></button>
+        <button class="frame-hit" onclick="selectLuck('이사운','77,255,136')"></button>
+        <button class="frame-hit" onclick="selectLuck('재물운','255,215,0')"></button>
+        <button class="frame-hit" onclick="selectLuck('합격운','102,153,255')"></button>
+        <button class="frame-hit" onclick="selectLuck('사업운','255,102,255')"></button>
+        <button class="frame-hit" onclick="selectLuck('건강운','68,255,238')"></button>
+        <button class="frame-hit" onclick="selectLuck('대인관계','255,255,255')"></button>
+        <button class="frame-hit" onclick="selectLuck('오늘의운세','255,170,51')"></button>
+    </div>
+    <canvas id="glow-canvas"></canvas>
+    <button id="btn-ask-overlay" onclick="openAskModal()"></button>
+    <div id="guide-text">원하는 운세를 클릭 후 질문하기 버튼을 누르세요</div>
+</div>
+
+<div id="modal-ask" class="modal-overlay">
+    <div class="luxury-box">
+        <div class="candle candle-left">🕯️</div><div class="candle candle-right">🕯️</div>
+        <h2 style="color:var(--gold);margin:0;font-size:20px;">진심을 담아 글을 쓰세요</h2>
+        <p id="luck-label" style="font-size:12px;color:var(--gold-bright);margin:10px 0;"></p>
+        <div style="position:relative;width:100%;">
+            <textarea id="q-input" class="luxury-input" placeholder="마음속 고민을 입력해주세요" style="padding-right:46px;"></textarea>
+            <button class="mic-btn" id="mic-btn" onclick="toggleVoice()">🎤</button>
+        </div>
+        <div class="voice-status" id="voice-status"></div>
+        <button class="gold-btn blink-btn" onclick="startTarot()">✦ 타로카드 3장을 뽑아 주세요 ✦</button>
+    </div>
+</div>
+
+<div id="pick-layer">
+    <div id="card-slots">
+        <div class="slot" id="slot0"><span class="slot-num">1</span><span class="slot-name">과거</span></div>
+        <div class="slot" id="slot1"><span class="slot-num">2</span><span class="slot-name">현재</span></div>
+        <div class="slot" id="slot2"><span class="slot-num">3</span><span class="slot-name">미래</span></div>
+    </div>
+    <div id="table-container"><svg viewBox="0 0 600 600"><g id="main-g"></g></svg></div>
+    <div id="pick-footer">
+        <button class="pick-btn-sec" onclick="shuffleAction()">카드 섞기</button>
+        <button class="pick-btn-pri" onclick="confirmSelection()">선택 완료 →</button>
+    </div>
+</div>
+
+<div id="modal-result">
+    <div class="result-title">✦ 해석 결과 ✦</div>
+    <div class="res-cards-row" id="res-cards-display"></div>
+    <div id="res-content-list" style="width:100%;max-width:420px;"></div>
+    <div class="result-btns">
+        <button class="btn-continue" onclick="openContinueModal()">🔮 이어서 상담할래요</button>
+        <button class="btn-end" onclick="location.reload()">✦ 다음에 다시 올게요</button>
+    </div>
+</div>
+
+<div id="modal-continue">
+    <div class="continue-box">
+        <h3>🕯️ 이어서 상담하기</h3>
+        <p>이전 상담 내용을 바탕으로<br>새로운 질문을 이어갈 수 있어요</p>
+        <div class="prev-q-box"><div class="prev-q-label">▸ 이전 질문</div><div id="prev-q-text"></div></div>
+        <div style="position:relative;width:100%;">
+            <textarea id="continue-input" class="luxury-input" placeholder="이어서 궁금한 점을 입력해주세요..." style="padding-right:46px;margin-bottom:6px;"></textarea>
+            <button class="mic-btn" id="mic-btn-c" onclick="toggleVoiceContinue()">🎤</button>
+        </div>
+        <div class="voice-status" id="voice-status-c"></div>
+        <button class="gold-btn blink-btn" onclick="startContinue()" style="margin-bottom:10px;">✦ 카드 3장을 다시 뽑아주세요 ✦</button>
+        <button class="btn-end" onclick="closeContinueModal()" style="width:100%;padding:12px 0;margin-top:4px;">← 결과로 돌아가기</button>
+    </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════
+   타로 덱 — 78장 전체, 중복 없음, URL 검증됨
+   Major Arcana 22장 + 완즈14 + 컵14 + 검14 + 펜타클14
+══════════════════════════════════════════ */
+const T = "https://upload.wikimedia.org/wikipedia/commons/thumb/";
+const W = "https://upload.wikimedia.org/wikipedia/commons/";
+
+const DECK = [
+    // ── Major Arcana (0~21) ──
+    {name:"광대",          img:T+"9/90/RWS_Tarot_00_Fool.jpg/122px-RWS_Tarot_00_Fool.jpg"},
+    {name:"마법사",         img:T+"1/10/RWS_Tarot_01_Magician.jpg/122px-RWS_Tarot_01_Magician.jpg"},
+    {name:"여사제",         img:T+"8/88/RWS_Tarot_02_High_Priestess.jpg/122px-RWS_Tarot_02_High_Priestess.jpg"},
+    {name:"여황제",         img:T+"d/d2/RWS_Tarot_03_Empress.jpg/122px-RWS_Tarot_03_Empress.jpg"},
+    {name:"황제",           img:T+"c/c3/RWS_Tarot_04_Emperor.jpg/122px-RWS_Tarot_04_Emperor.jpg"},
+    {name:"교황",           img:T+"8/8d/RWS_Tarot_05_Hierophant.jpg/122px-RWS_Tarot_05_Hierophant.jpg"},
+    {name:"연인",           img:T+"d/db/RWS_Tarot_06_Lovers.jpg/122px-RWS_Tarot_06_Lovers.jpg"},
+    {name:"전차",           img:T+"9/9b/RWS_Tarot_07_Chariot.jpg/122px-RWS_Tarot_07_Chariot.jpg"},
+    {name:"힘",             img:T+"f/f5/RWS_Tarot_08_Strength.jpg/122px-RWS_Tarot_08_Strength.jpg"},
+    {name:"은둔자",         img:T+"4/4d/RWS_Tarot_09_Hermit.jpg/122px-RWS_Tarot_09_Hermit.jpg"},
+    {name:"운명의바퀴",     img:T+"3/3c/RWS_Tarot_10_Wheel_of_Fortune.jpg/122px-RWS_Tarot_10_Wheel_of_Fortune.jpg"},
+    {name:"정의",           img:T+"e/e0/RWS_Tarot_11_Justice.jpg/122px-RWS_Tarot_11_Justice.jpg"},
+    {name:"매달린사람",     img:T+"2/2b/RWS_Tarot_12_Hanged_Man.jpg/122px-RWS_Tarot_12_Hanged_Man.jpg"},
+    {name:"죽음",           img:T+"d/d7/RWS_Tarot_13_Death.jpg/122px-RWS_Tarot_13_Death.jpg"},
+    {name:"절제",           img:T+"f/f8/RWS_Tarot_14_Temperance.jpg/122px-RWS_Tarot_14_Temperance.jpg"},
+    {name:"악마",           img:T+"5/55/RWS_Tarot_15_Devil.jpg/122px-RWS_Tarot_15_Devil.jpg"},
+    {name:"탑",             img:T+"5/53/RWS_Tarot_16_Tower.jpg/122px-RWS_Tarot_16_Tower.jpg"},
+    {name:"별",             img:T+"d/db/RWS_Tarot_17_Star.jpg/122px-RWS_Tarot_17_Star.jpg"},
+    {name:"달",             img:T+"7/7f/RWS_Tarot_18_Moon.jpg/122px-RWS_Tarot_18_Moon.jpg"},
+    {name:"태양",           img:T+"1/17/RWS_Tarot_19_Sun.jpg/122px-RWS_Tarot_19_Sun.jpg"},
+    {name:"심판",           img:T+"d/dd/RWS_Tarot_20_Judgement.jpg/122px-RWS_Tarot_20_Judgement.jpg"},
+    {name:"세계",           img:T+"f/ff/RWS_Tarot_21_World.jpg/122px-RWS_Tarot_21_World.jpg"},
+    // ── 완즈 (Wands 1~14) ──
+    {name:"완즈 에이스",   img:T+"1/11/Wands01.jpg/122px-Wands01.jpg"},
+    {name:"완즈 2",        img:T+"0/0f/Wands02.jpg/122px-Wands02.jpg"},
+    {name:"완즈 3",        img:T+"f/ff/Wands03.jpg/122px-Wands03.jpg"},
+    {name:"완즈 4",        img:T+"a/a4/Wands04.jpg/122px-Wands04.jpg"},
+    {name:"완즈 5",        img:T+"9/9d/Wands05.jpg/122px-Wands05.jpg"},
+    {name:"완즈 6",        img:T+"3/3b/Wands06.jpg/122px-Wands06.jpg"},
+    {name:"완즈 7",        img:T+"e/e4/Wands07.jpg/122px-Wands07.jpg"},
+    {name:"완즈 8",        img:T+"6/6b/Wands08.jpg/122px-Wands08.jpg"},
+    {name:"완즈 9",        img:T+"4/4d/Tarot_Nine_of_Wands.jpg/122px-Tarot_Nine_of_Wands.jpg"},
+    {name:"완즈 10",       img:W+"0/0b/Wands10.jpg"},
+    {name:"완즈 시종",     img:T+"6/6a/Wands11.jpg/122px-Wands11.jpg"},
+    {name:"완즈 기사",     img:W+"1/16/Wands12.jpg"},
+    {name:"완즈 여왕",     img:T+"0/0d/Wands13.jpg/122px-Wands13.jpg"},
+    {name:"완즈 왕",       img:T+"c/ce/Wands14.jpg/122px-Wands14.jpg"},
+    // ── 컵 (Cups 1~14) ──
+    {name:"컵 에이스",     img:T+"3/36/Cups01.jpg/122px-Cups01.jpg"},
+    {name:"컵 2",          img:T+"f/f8/Cups02.jpg/122px-Cups02.jpg"},
+    {name:"컵 3",          img:T+"7/7a/Cups03.jpg/122px-Cups03.jpg"},
+    {name:"컵 4",          img:T+"3/35/Cups04.jpg/122px-Cups04.jpg"},
+    {name:"컵 5",          img:T+"d/d7/Cups05.jpg/122px-Cups05.jpg"},
+    {name:"컵 6",          img:T+"1/17/Cups06.jpg/122px-Cups06.jpg"},
+    {name:"컵 7",          img:T+"a/ae/Cups07.jpg/122px-Cups07.jpg"},
+    {name:"컵 8",          img:T+"6/60/Cups08.jpg/122px-Cups08.jpg"},
+    {name:"컵 9",          img:T+"2/24/Cups09.jpg/122px-Cups09.jpg"},
+    {name:"컵 10",         img:T+"8/84/Cups10.jpg/122px-Cups10.jpg"},
+    {name:"컵 시종",       img:T+"a/ad/Cups11.jpg/122px-Cups11.jpg"},
+    {name:"컵 기사",       img:T+"f/fa/Cups12.jpg/122px-Cups12.jpg"},
+    {name:"컵 여왕",       img:T+"6/62/Cups13.jpg/122px-Cups13.jpg"},
+    {name:"컵 왕",         img:T+"0/04/Cups14.jpg/122px-Cups14.jpg"},
+    // ── 검 (Swords 1~14) ──
+    {name:"검 에이스",     img:T+"1/1a/Swords01.jpg/122px-Swords01.jpg"},
+    {name:"검 2",          img:T+"9/9e/Swords02.jpg/122px-Swords02.jpg"},
+    {name:"검 3",          img:T+"0/02/Swords03.jpg/122px-Swords03.jpg"},
+    {name:"검 4",          img:T+"b/bf/Swords04.jpg/122px-Swords04.jpg"},
+    {name:"검 5",          img:T+"2/23/Swords05.jpg/122px-Swords05.jpg"},
+    {name:"검 6",          img:T+"2/29/Swords06.jpg/122px-Swords06.jpg"},
+    {name:"검 7",          img:T+"3/34/Swords07.jpg/122px-Swords07.jpg"},
+    {name:"검 8",          img:T+"a/a7/Swords08.jpg/122px-Swords08.jpg"},
+    {name:"검 9",          img:T+"2/2f/Swords09.jpg/122px-Swords09.jpg"},
+    {name:"검 10",         img:T+"d/d4/Swords10.jpg/122px-Swords10.jpg"},
+    {name:"검 시종",       img:T+"4/4c/Swords11.jpg/122px-Swords11.jpg"},
+    {name:"검 기사",       img:T+"b/b0/Swords12.jpg/122px-Swords12.jpg"},
+    {name:"검 여왕",       img:T+"d/d4/Swords13.jpg/122px-Swords13.jpg"},
+    {name:"검 왕",         img:T+"3/33/Swords14.jpg/122px-Swords14.jpg"},
+    // ── 펜타클 (Pentacles 1~14) ──
+    {name:"펜타클 에이스", img:T+"f/fd/Pents01.jpg/122px-Pents01.jpg"},
+    {name:"펜타클 2",      img:T+"9/9f/Pents02.jpg/122px-Pents02.jpg"},
+    {name:"펜타클 3",      img:T+"4/42/Pents03.jpg/122px-Pents03.jpg"},
+    {name:"펜타클 4",      img:T+"3/35/Pents04.jpg/122px-Pents04.jpg"},
+    {name:"펜타클 5",      img:T+"9/96/Pents05.jpg/122px-Pents05.jpg"},
+    {name:"펜타클 6",      img:T+"a/a6/Pents06.jpg/122px-Pents06.jpg"},
+    {name:"펜타클 7",      img:T+"6/6a/Pents07.jpg/122px-Pents07.jpg"},
+    {name:"펜타클 8",      img:T+"4/49/Pents08.jpg/122px-Pents08.jpg"},
+    {name:"펜타클 9",      img:T+"f/f0/Pents09.jpg/122px-Pents09.jpg"},
+    {name:"펜타클 10",     img:T+"4/42/Pents10.jpg/122px-Pents10.jpg"},
+    {name:"펜타클 시종",   img:T+"e/ec/Pents11.jpg/122px-Pents11.jpg"},
+    {name:"펜타클 기사",   img:T+"d/d5/Pents12.jpg/122px-Pents12.jpg"},
+    {name:"펜타클 여왕",   img:T+"8/88/Pents13.jpg/122px-Pents13.jpg"},
+    {name:"펜타클 왕",     img:T+"1/1c/Pents14.jpg/122px-Pents14.jpg"},
+];
+
+/* ── 셔플드 덱 (Fisher-Yates) — 뽑을 때마다 앞에서 순서대로 ── */
+let shuffledDeck = [], deckPtr = 0;
+
+function freshShuffle() {
+    shuffledDeck = [...DECK];
+    for (let i = shuffledDeck.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledDeck[i], shuffledDeck[j]] = [shuffledDeck[j], shuffledDeck[i]];
+    }
+    deckPtr = 0;
+}
+
+function drawCard() {
+    if (deckPtr >= shuffledDeck.length) freshShuffle();
+    return shuffledDeck[deckPtr++];
+}
+
+/* ── 전역 상태 ── */
+let currentLuck = "", question = "", pickedCards = [], conversationHistory = [];
+let recognition = null, isListening = false;
+
+/* ══ 조명 캔버스 ══ */
+const LAMP_CONFIG = [
+    {xOff:0.50, yOff:0.50, spread:0.09},
+    {xOff:0.50, yOff:0.50, spread:0.09},
+    {xOff:0.45, yOff:0.50, spread:0.09},
+    {xOff:0.43, yOff:0.50, spread:0.09},
+    {xOff:0.50, yOff:0.40, spread:0.09},
+    {xOff:0.50, yOff:0.40, spread:0.09},
+    {xOff:0.45, yOff:0.40, spread:0.09},
+    {xOff:0.43, yOff:0.40, spread:0.09},
+];
+const lampCvs = document.getElementById('lamp-canvas');
+const lampCtx = lampCvs.getContext('2d');
+let lampPhase = 0;
+function resizeLamp(){const s=document.getElementById('main-screen');lampCvs.width=s.offsetWidth;lampCvs.height=s.offsetHeight;}
+resizeLamp();window.addEventListener('resize',resizeLamp);
+function drawLamp(cx,cy,b){
+    const g0=lampCtx.createRadialGradient(cx,cy,0,cx,cy+2,2);
+    g0.addColorStop(0,`rgba(255,255,230,${0.95*b})`);g0.addColorStop(0.5,`rgba(255,230,80,${0.6*b})`);g0.addColorStop(1,`rgba(255,200,40,0)`);
+    lampCtx.beginPath();lampCtx.arc(cx,cy+2,4,0,Math.PI*2);lampCtx.fillStyle=g0;lampCtx.fill();
+    const g1=lampCtx.createRadialGradient(cx,cy+2,0,cx,cy+2,12);
+    g1.addColorStop(0,`rgba(255,210,50,${0.30*b})`);g1.addColorStop(1,`rgba(255,150,0,0)`);
+    lampCtx.beginPath();lampCtx.arc(cx,cy+3,12,0,Math.PI*2);lampCtx.fillStyle=g1;lampCtx.fill();
+    const g2=lampCtx.createRadialGradient(cx,cy,0,cx,cy,20);
+    g2.addColorStop(0,`rgba(255,180,0,${0.10*b})`);g2.addColorStop(1,`rgba(255,100,0,0)`);
+    lampCtx.beginPath();lampCtx.arc(cx,cy,22,0,Math.PI*2);lampCtx.fillStyle=g2;lampCtx.fill();
+}
+function animateLamps(){
+    lampPhase+=0.03;lampCtx.clearRect(0,0,lampCvs.width,lampCvs.height);
+    const buttons=document.querySelectorAll('.frame-hit');
+    const scrR=document.getElementById('main-screen').getBoundingClientRect();
+    buttons.forEach((btn,i)=>{
+        const r=btn.getBoundingClientRect();
+        const left=r.left-scrR.left,top=r.top-scrR.top,w=r.width,h=r.height;
+        const cfg=LAMP_CONFIG[i]||{xOff:0.50,yOff:0.45,spread:0.09};
+        const ly=top+h*cfg.yOff,cx=left+w*cfg.xOff;
+        const lx1=cx-w*cfg.spread,lx2=cx+w*cfg.spread;
+        const brightness=0.55+0.38*Math.sin(lampPhase+i*0.6);
+        drawLamp(lx1,ly,brightness);drawLamp(lx2,ly,brightness);
+    });
+    requestAnimationFrame(animateLamps);
+}
+if(document.readyState==='complete'){animateLamps();}else{window.addEventListener('load',animateLamps);}
+
+/* ══ 수정볼 글로우 ══ */
+const glowCvs=document.getElementById('glow-canvas');
+const ctx2d=glowCvs.getContext('2d');
+let glowRGB=null,glowAnim=null;
+function resizeGlow(){const s=document.getElementById('main-screen');glowCvs.width=s.offsetWidth;glowCvs.height=s.offsetHeight;if(glowRGB)drawGlow(glowRGB,1);}
+window.addEventListener('resize',resizeGlow);resizeGlow();
+function drawGlow(rgb,p){
+    const w=glowCvs.width,h=glowCvs.height;ctx2d.clearRect(0,0,w,h);
+    const bx=w*0.50,by=h*0.620,br=w*0.046;
+    [[br*p,'rgba(255,255,255,0.55)',`rgba(${rgb},0.45)`,`rgba(${rgb},0)`],
+     [br*2.8*p,`rgba(${rgb},0.55)`,`rgba(${rgb},0.22)`,`rgba(${rgb},0)`],
+     [w*0.30*p,`rgba(${rgb},0.28)`,`rgba(${rgb},0.10)`,`rgba(${rgb},0)`],
+     [w*0.44*p,`rgba(${rgb},0.16)`,`rgba(${rgb},0.05)`,`rgba(${rgb},0)`]
+    ].forEach(([r,c0,c1,c2])=>{
+        const g=ctx2d.createRadialGradient(bx,by,0,bx,by,r);
+        g.addColorStop(0,c0);g.addColorStop(0.5,c1);g.addColorStop(1,c2);
+        ctx2d.beginPath();ctx2d.arc(bx,by,r,0,Math.PI*2);ctx2d.fillStyle=g;ctx2d.fill();
+    });
+}
+function startGlowAnim(rgb){
+    glowRGB=rgb;glowCvs.classList.add('glow-on');
+    let t=0;const f=()=>{t+=0.025;drawGlow(rgb,1+Math.sin(t)*0.08);glowAnim=requestAnimationFrame(f);};
+    if(glowAnim)cancelAnimationFrame(glowAnim);f();
+}
+function stopGlowAnim(){
+    glowCvs.classList.remove('glow-on');
+    if(glowAnim){cancelAnimationFrame(glowAnim);glowAnim=null;}
+    ctx2d.clearRect(0,0,glowCvs.width,glowCvs.height);glowRGB=null;
+}
+
+/* ══ 배경음악 ══ */
+let audioCtx=null,masterGain=null,musicPlaying=false,musicStarted=false;
+let droneNodes=[],bellTimer=null,padTimer=null;
+const BOWLS=[216,288,324,432,576,648,864,324,288*1.5];
+function sinebell(freq,when,amp=0.055,attack=0.012,decay=4.5){
+    if(!audioCtx||!musicPlaying)return;
+    [[freq,amp],[freq*2,amp*0.18],[freq*4,amp*0.04]].forEach(([f,a])=>{
+        const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+        const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=f*3;lp.Q.value=0.3;
+        o.type='sine';o.frequency.setValueAtTime(f,when);
+        g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(a,when+attack);g.gain.exponentialRampToValueAtTime(0.0001,when+decay);
+        o.connect(lp);lp.connect(g);g.connect(masterGain);o.start(when);o.stop(when+decay+0.1);
+    });
+}
+function scheduleBell(){
+    if(!audioCtx||!musicPlaying)return;
+    const now=audioCtx.currentTime;
+    const freq=BOWLS[Math.floor(Math.random()*BOWLS.length)];
+    sinebell(freq,now,0.045+Math.random()*0.025,0.015,3.5+Math.random()*2.5);
+    if(Math.random()<0.35)sinebell(freq*1.5,now+0.6+Math.random()*0.8,0.025,0.018,3.0+Math.random()*1.5);
+    bellTimer=setTimeout(scheduleBell,2800+Math.random()*3500);
+}
+function sinePad(freq,when,dur=12,amp=0.012){
+    if(!audioCtx||!musicPlaying)return;
+    [freq,freq*2,freq*3].forEach((f,i)=>{
+        const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+        const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=600;lp.Q.value=0.1;
+        const lfo=audioCtx.createOscillator(),lg=audioCtx.createGain();
+        lfo.type='sine';lfo.frequency.value=0.07+i*0.03;lg.gain.value=f*0.0008;
+        lfo.connect(lg);lg.connect(o.frequency);
+        o.type='sine';o.frequency.setValueAtTime(f,when);
+        const a=amp/Math.pow(1.8,i);
+        g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(a,when+dur*0.30);
+        g.gain.setValueAtTime(a,when+dur*0.65);g.gain.linearRampToValueAtTime(0,when+dur);
+        o.connect(lp);lp.connect(g);g.connect(masterGain);o.start(when);lfo.start(when);
+        o.stop(when+dur+0.2);lfo.stop(when+dur+0.2);
+    });
+}
+const PADS=[108,144,162,216,216];
+function schedulePad(){
+    if(!audioCtx||!musicPlaying)return;
+    const now=audioCtx.currentTime;
+    sinePad(PADS[Math.floor(Math.random()*PADS.length)],now,11+Math.random()*4,0.011);
+    padTimer=setTimeout(schedulePad,9000+Math.random()*4000);
+}
+function startDrone(){
+    if(!audioCtx)return;stopDrone();
+    [[108,0.028],[144,0.016]].forEach(([freq,amp])=>{
+        const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+        const lp=audioCtx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=300;lp.Q.value=0.1;
+        o.type='sine';o.frequency.value=freq;
+        g.gain.setValueAtTime(0,audioCtx.currentTime);g.gain.linearRampToValueAtTime(amp,audioCtx.currentTime+2.5);
+        o.connect(lp);lp.connect(g);g.connect(masterGain);o.start();droneNodes.push({o,g});
+    });
+}
+function stopDrone(){droneNodes.forEach(({o,g})=>{try{g.gain.linearRampToValueAtTime(0,audioCtx.currentTime+1.5);o.stop(audioCtx.currentTime+1.6);}catch(e){}});droneNodes=[];}
+function buildMusic(){
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    masterGain=audioCtx.createGain();masterGain.gain.value=0;masterGain.connect(audioCtx.destination);
+    musicPlaying=true;musicStarted=true;
+    masterGain.gain.linearRampToValueAtTime(0.22,audioCtx.currentTime+1.5);
+    startDrone();bellTimer=setTimeout(scheduleBell,1500);padTimer=setTimeout(schedulePad,3000);
+}
+function stopAllTimers(){clearTimeout(bellTimer);clearTimeout(padTimer);bellTimer=null;padTimer=null;}
+function tryStartMusic(){if(musicStarted)return;buildMusic();const b=document.getElementById('music-btn');b.textContent='🔊';b.classList.remove('muted');}
+document.addEventListener('touchstart',tryStartMusic,{once:true});
+document.addEventListener('click',tryStartMusic,{once:true});
+function toggleMusic(){
+    const b=document.getElementById('music-btn');
+    if(!musicStarted){buildMusic();b.textContent='🔊';b.classList.remove('muted');return;}
+    if(musicPlaying){musicPlaying=false;stopAllTimers();stopDrone();masterGain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+1.2);b.textContent='🔇';b.classList.add('muted');}
+    else{musicPlaying=true;masterGain.gain.linearRampToValueAtTime(0.22,audioCtx.currentTime+0.8);startDrone();bellTimer=setTimeout(scheduleBell,800);padTimer=setTimeout(schedulePad,2000);b.textContent='🔊';b.classList.remove('muted');}
+}
+
+/* ══ SVG 금점 링 ══ */
+function drawGoldRings(svgG){
+    const ns="http://www.w3.org/2000/svg",CX=300,CY=300;
+    [{r:88,cardH:42,dotR:2.2},{r:168,cardH:42,dotR:2.0},{r:248,cardH:42,dotR:1.8}].forEach(({r,cardH,dotR})=>{
+        const ringR=r+cardH+6,cnt=Math.round(2*Math.PI*ringR/7);
+        for(let i=0;i<cnt;i++){
+            const a=(i/cnt)*Math.PI*2,x=CX+ringR*Math.cos(a),y=CY+ringR*Math.sin(a);
+            const c=document.createElementNS(ns,"circle");c.setAttribute("cx",x.toFixed(2));c.setAttribute("cy",y.toFixed(2));c.setAttribute("r",dotR);
+            const br=0.55+0.45*Math.abs(Math.sin(a*3));c.setAttribute("fill",`rgb(${Math.round(212*br)},${Math.round(175*br)},${Math.round(55*br)})`);c.setAttribute("opacity",(0.7+0.3*br).toFixed(2));svgG.appendChild(c);
+        }
+        [ringR,ringR-5].forEach((rr,ii)=>{const rc=document.createElementNS(ns,"circle");rc.setAttribute("cx",CX);rc.setAttribute("cy",CY);rc.setAttribute("r",rr);rc.setAttribute("fill","none");rc.setAttribute("stroke",`rgba(212,175,55,${ii===0?0.30:0.18})`);rc.setAttribute("stroke-width",ii===0?"0.8":"0.6");svgG.appendChild(rc);});
+    });
+    const outerR=306,oc=document.createElementNS(ns,"circle");oc.setAttribute("cx",CX);oc.setAttribute("cy",CY);oc.setAttribute("r",outerR);oc.setAttribute("fill","none");oc.setAttribute("stroke","rgba(212,175,55,0.55)");oc.setAttribute("stroke-width","2.5");svgG.appendChild(oc);
+    const oCnt=Math.round(2*Math.PI*outerR/6.5);
+    for(let i=0;i<oCnt;i++){
+        const a=(i/oCnt)*Math.PI*2,x=CX+outerR*Math.cos(a),y=CY+outerR*Math.sin(a);
+        const c=document.createElementNS(ns,"circle");c.setAttribute("cx",x.toFixed(2));c.setAttribute("cy",y.toFixed(2));c.setAttribute("r","2.5");
+        const br=0.6+0.4*Math.abs(Math.sin(a*4));c.setAttribute("fill",`rgb(${Math.round(220*br)},${Math.round(185*br)},${Math.round(65*br)})`);c.setAttribute("opacity",(0.75+0.25*br).toFixed(2));svgG.appendChild(c);
+    }
+}
+
+/* ══ 카드 이미지 렌더 ══ */
+function makeCardImg(c){
+    const div=document.createElement('div');div.style.cssText='width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:6px;';
+    const img=document.createElement('img');img.src=c.img;
+    img.style.cssText=`width:100%;height:100%;object-fit:cover;border-radius:6px;${c.rev?'transform:rotate(180deg);':''}opacity:0;transition:opacity 0.4s;`;
+    img.onload=()=>{img.style.opacity=1;};
+    img.onerror=()=>{div.style.background='linear-gradient(135deg,#2a1a08,#1a0f05)';div.innerHTML=`<span style="color:#d4af37;font-size:9px;text-align:center;padding:4px;line-height:1.4;">${c.name}</span>`;};
+    div.appendChild(img);return div;
+}
+
+/* ══ 음성인식 ══ */
+async function startRecognition(inId,stId,btnId){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){alert("크롬 브라우저에서 음성인식을 지원해요.");return;}
+    if(isListening){recognition&&recognition.stop();return;}
+    const btn=document.getElementById(btnId),st=document.getElementById(stId);
+    try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop());}catch(e){st.style.color='#ff8888';st.innerText=e.name==='NotAllowedError'?'마이크 권한을 허용해주세요':'마이크 사용 불가';return;}
+    recognition=new SR();recognition.lang='ko-KR';recognition.continuous=false;recognition.interimResults=true;
+    recognition.onstart=()=>{isListening=true;btn.classList.add('listening');btn.innerHTML='🔴';st.style.color='#ff8888';st.innerText='🎤 듣고 있어요...';};
+    recognition.onresult=(e)=>{let fi='',in2='';for(let i=e.resultIndex;i<e.results.length;i++){e.results[i].isFinal?(fi+=e.results[i][0].transcript):(in2+=e.results[i][0].transcript);}const inp=document.getElementById(inId);if(fi){inp.value+=fi;st.style.color='#88cc88';st.innerText='✅ 완료!';}else{st.style.color='#aaa';st.innerText='💬 '+in2;}};
+    recognition.onerror=(e)=>{st.style.color='#ff8888';st.innerText=e.error==='no-speech'?'소리가 감지되지 않아요':'다시 시도해주세요';isListening=false;btn.classList.remove('listening');btn.innerHTML='🎤';};
+    recognition.onend=()=>{isListening=false;btn.classList.remove('listening');btn.innerHTML='🎤';setTimeout(()=>{if(!st.innerText.includes('완료'))st.innerText='';},2500);};
+    recognition.start();
+}
+function toggleVoice(){startRecognition('q-input','voice-status','mic-btn');}
+function toggleVoiceContinue(){startRecognition('continue-input','voice-status-c','mic-btn-c');}
+
+/* ══ 운세 선택 & 모달 ══ */
+function selectLuck(n,rgb){currentLuck=n;startGlowAnim(rgb);document.getElementById('luck-label').innerText=`✦ 분야: ${n}`;}
+function openAskModal(){if(!currentLuck)return alert("운세를 먼저 선택하세요.");stopGlowAnim();document.getElementById('modal-ask').style.display='flex';}
+function startTarot(){question=document.getElementById('q-input').value.trim();if(!question)return alert("진심을 담아 글을 쓰세요.");document.getElementById('modal-ask').style.display='none';document.getElementById('pick-layer').style.display='flex';setTimeout(initTable,80);}
+
+/* ══ 카드 테이블 ══ */
+function initTable(){
+    freshShuffle(); // 새 게임마다 덱 셔플
+    const g=document.getElementById('main-g');g.innerHTML='';pickedCards=[];
+    ['slot0','slot1','slot2'].forEach((id,idx)=>{const s=document.getElementById(id);s.classList.remove('active');s.innerHTML=`<span class="slot-num">${idx+1}</span><span class="slot-name">${['과거','현재','미래'][idx]}</span>`;});
+    const ns="http://www.w3.org/2000/svg",rg=document.createElementNS(ns,"g");drawGoldRings(rg);g.appendChild(rg);
+    const CW=52,CH=84;
+    [{n:18,r:88},{n:26,r:168},{n:34,r:248}].forEach(layer=>{
+        for(let i=0;i<layer.n;i++){
+            const ang=(i/layer.n)*Math.PI*2,cx=300+layer.r*Math.cos(ang),cy=300+layer.r*Math.sin(ang),x=cx-CW/2,y=cy-CH/2,rot=(ang*180/Math.PI)+90;
+            const card=document.createElementNS(ns,"g");card.setAttribute("class","card-group");card.style.transformOrigin=`${cx}px ${cy}px`;card.style.transform=`rotate(${rot}deg)`;card.dataset.cx=cx;card.dataset.cy=cy;
+            card.innerHTML=`<rect x="${x}" y="${y}" width="${CW}" height="${CH}" rx="4" class="card-body"/><rect x="${x+3}" y="${y+3}" width="${CW-6}" height="${CH-6}" rx="2" class="card-inner-line"/><polygon points="${cx},${cy-7} ${cx+5},${cy} ${cx},${cy+7} ${cx-5},${cy}" class="card-diamond"/>`;
+            card.onclick=()=>pickCard(card);g.appendChild(card);
+        }
+    });
+}
+
+function pickCard(el){
+    if(pickedCards.length>=3||el.classList.contains('picked'))return;
+    el.classList.add('picked');
+    // drawCard()는 셔플된 덱에서 순서대로 → 절대 중복 없음
+    const c=drawCard(),rev=Math.random()<0.3;
+    pickedCards.push({name:c.name,img:c.img,rev});
+    const idx=pickedCards.length-1,slot=document.getElementById(`slot${idx}`);
+    slot.classList.add('active');slot.innerHTML='';slot.appendChild(makeCardImg({...c,rev}));
+}
+
+function shuffleAction(){
+    if(pickedCards.length>0)return alert("이미 카드를 선택하셨습니다.");
+    document.querySelectorAll('.card-group').forEach(c=>{c.style.transition='transform 0.5s ease';c.style.transform=`translate(${300-parseFloat(c.dataset.cx)}px,${300-parseFloat(c.dataset.cy)}px) rotate(0deg)`;});
+    setTimeout(initTable,750);
+}
+
+function confirmSelection(){
+    if(pickedCards.length<3)return alert("카드를 3장 모두 골라주세요!");
+    document.getElementById('pick-layer').style.display='none';
+    document.getElementById('modal-result').style.display='flex';
+    renderResults();
+}
+
+function renderResults(){
+    const row=document.getElementById('res-cards-display');row.innerHTML='';
+    pickedCards.forEach((c,i)=>{
+        const wrap=document.createElement('div');wrap.className='res-card-wrap';
+        const imgBox=document.createElement('div');imgBox.className='res-card-img';imgBox.appendChild(makeCardImg(c));
+        const name=document.createElement('div');name.className='res-card-name';name.innerHTML=`${c.name}<br>${c.rev?'🔄역방향':'정방향'}`;
+        wrap.appendChild(imgBox);wrap.appendChild(name);row.appendChild(wrap);
+    });
+    document.getElementById('res-content-list').innerHTML=`<div class="loading-wrap"><div class="loading-orb"></div><div class="loading-text">타로 카드를 해석하는 중</div></div>`;
+    callClaude();
+}
+
+function openContinueModal(){document.getElementById('prev-q-text').innerText=question;document.getElementById('continue-input').value='';document.getElementById('voice-status-c').innerText='';document.getElementById('modal-continue').style.display='flex';}
+function closeContinueModal(){document.getElementById('modal-continue').style.display='none';}
+function startContinue(){
+    const newQ=document.getElementById('continue-input').value.trim();if(!newQ)return alert("이어서 할 질문을 입력해주세요.");
+    conversationHistory.push({prevQuestion:question,newQuestion:newQ});question=newQ;
+    document.getElementById('modal-continue').style.display='none';document.getElementById('modal-result').style.display='none';
+    document.getElementById('pick-layer').style.display='flex';setTimeout(initTable,80);
+}
+
+/* ══════════════════════════════════════════
+   Claude API 호출 — 이 환경에서 항상 작동
+══════════════════════════════════════════ */
+async function callClaude() {
+    const cardList = pickedCards.map((c,i)=>
+        `${['과거','현재','미래'][i]} 카드: ${c.name} ${c.rev?'(역방향)':'(정방향)'}`
+    ).join('\n');
+
+    let ctx = '';
+    if (conversationHistory.length > 0) {
+        const last = conversationHistory[conversationHistory.length-1];
+        ctx = `\n[이전 상담]\n이전 질문: ${last.prevQuestion}\n새 질문: ${last.newQuestion}\n이전 맥락을 바탕으로 연결하여 해석해주세요.\n`;
+    }
+
+    const prompt = `당신은 수십 년 경력의 신비로운 타로 마스터입니다. 라이더-웨이트 타로의 심층 상징에 정통합니다.
+${ctx}
+운세 분야: ${currentLuck}
+질문: ${question}
+뽑힌 카드:
+${cardList}
+
+정방향/역방향을 반드시 구분하여 해석하고, 질문과 연결된 개인화 해석을 해주세요.
+신비롭고 따뜻한 어조로 한국어로 답변하세요.
+
+반드시 아래 JSON 형식으로만 답변하세요 (코드블록 없이 순수 JSON만):
+{"c0":"과거 카드 해석 (4-5문장)","c1":"현재 카드 해석 (4-5문장)","c2":"미래 카드 해석 (4-5문장)","total":"종합 해석 (5-6문장)","adv":"실천 조언 (3-4문장)"}`;
+
+    try {
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: "claude-sonnet-4-20250514",
+                max_tokens: 1500,
+                messages: [{ role: "user", content: prompt }]
+            })
+        });
+
+        if (!res.ok) {
+            const t = await res.text().catch(()=>'');
+            throw new Error(`HTTP ${res.status}: ${t.slice(0,200)}`);
+        }
+
+        const data = await res.json();
+        const rawText = data.content.map(b => b.text || '').join('');
+        const m = rawText.match(/\{[\s\S]*\}/);
+        if (!m) throw new Error("JSON 파싱 실패");
+        const result = JSON.parse(m[0]);
+
+        let h = '';
+        if (conversationHistory.length > 0) {
+            h += `<div class="result-section" style="border-color:#1a2a3a;background:rgba(0,100,200,0.04);"><div class="sec-h" style="color:#6ab0ff;">🔗 이어진 상담 · ${conversationHistory.length}번째</div><div class="sec-b" style="color:#aac8ee;font-size:12px;">이전 상담을 바탕으로 이어서 해석합니다.</div></div>`;
+        }
+        [['🌙','과거'],['✨','현재'],['⭐','미래']].forEach(([em,pos],i)=>{
+            h += `<div class="result-section"><div class="sec-h">${em} ${pos} · ${pickedCards[i].name} ${pickedCards[i].rev?'(역방향)':'(정방향)'}</div><div class="sec-b">${result['c'+i]}</div></div>`;
+        });
+        h += `<div class="result-section" style="border-color:#3a2a08;background:rgba(212,175,55,0.03);"><div class="sec-h" style="color:var(--gold-bright);">🔮 종합 해석</div><div class="sec-b">${result.total}</div></div>`;
+        h += `<div class="result-section" style="border-color:#0a2010;background:rgba(80,180,60,0.03);"><div class="sec-h" style="color:#90ee90;">🌿 실천 조언</div><div class="sec-b" style="color:#c8e8c0;">${result.adv}</div></div>`;
+        document.getElementById('res-content-list').innerHTML = h;
+        document.getElementById('modal-result').scrollTo({top:0,behavior:'smooth'});
+
+    } catch(e) {
+        document.getElementById('res-content-list').innerHTML=`<div class="result-section"><div class="sec-b" style="color:#cc5555;text-align:center;">✦ 별들이 잠시 길을 잃었습니다 ✦<br><br>카드 해석을 불러오는 중 오류가 발생했습니다.<br><span style="font-size:11px;color:#666;">${e.message}</span></div></div>`;
+    }
+}
+</script>
+</body>
+</html>
